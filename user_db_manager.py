@@ -23,7 +23,7 @@ def user_db_del(key):
 def user_db_list():
     db = plyvel.DB('user_db', create_if_missing=True)
     data = []
-    for key, value in db:
+    for key, _ in db:
         data.append(key.decode())
     db.close()
     return data

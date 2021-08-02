@@ -2,8 +2,6 @@ import json
 import index_db_manager
 import hashlib
 import base64
-import os
-import shutil
 
 def read_user_db(username):
     with open('data/auth.db') as f:

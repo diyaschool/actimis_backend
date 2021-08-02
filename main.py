@@ -4,8 +4,6 @@ import token_db_manager
 import secrets
 import auth_db_manager
 import index_db_manager
-import hashlib
-import json
 
 app = flask.Flask(__name__)
 

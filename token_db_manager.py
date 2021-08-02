@@ -4,7 +4,7 @@ import json
 def list_tokens():
     db = plyvel.DB('data/token_db', create_if_missing=True)
     output_data = []
-    for token, data in db:
+    for token, _ in db:
         output_data.append(token.decode())
     db.close()
     return output_data
