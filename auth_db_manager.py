@@ -15,33 +15,45 @@ def read_user_db(username):
         return False
 
 def verify_creds(username, password):
-    pass
+    user_data = read_user_db(username)
+    if user_data == False:
+        return (False, "Username not found")
+    if user_data['password'] == base64.b64encode(hashlib.sha256(hashlib.sha256(password.encode()).digest()).digest()).decode():
+        return (True, "Authentication successful")
+    return (False, "Password incorrect")
 
 def write(username, data):
     with open('data/auth.db') as f:
         all_data = json.loads(f.read())
     all_data[username] = data
     with open('data/auth.db', 'w') as f:
-        f.write(all_data)
+        f.write(json.dumps(all_data))
 
-def modify_user(username, password, email, tags):
+def modify_user(username, password, name, email, tags):
     data = read_user_db(username)
     if data == False:
         return False
     if password != None:
-        password = base64.b64encode(hashlib.sha256(hashlib.sha256(password.encode()).digest()).digest())
+        password = base64.b64encode(hashlib.sha256(hashlib.sha256(password.encode()).digest()).digest()).decode()
         data['password'] = password
     if email != None:
         data['email'] = email
     if tags != None:
         data['tags'] = tags
+    if name != None:
+        data['name'] = name
     write(username, data)
 
-def new_user(username, password, email, tags):
-    if index_db_manager.get_by_username(username) == False:
+def new_user(username, password, name, email, tags):
+    if index_db_manager.get_by_username(username) != False:
         return (False, "Username already exists")
-    if index_db_manager.get_by_email(email) == False:
+    if index_db_manager.get_by_email(email) != False:
         return (False, "Email already exists")
-    password = base64.b64encode(hashlib.sha256(hashlib.sha256(password.encode()).digest()).digest())
-    user_data = {'password': password, 'email': email, 'tags': tags}
+    password = base64.b64encode(hashlib.sha256(hashlib.sha256(password.encode()).digest()).digest()).decode()
+    user_data = {'password': password, 'name': name, 'email': email, 'tags': tags}
     write(username, user_data)
+    return (True, "Written successfully")
+
+if __name__ == '__main__':
+    # new_user('admin1', 'lol', "admin1@dev.app", ['9a', '9b'])
+    print(verify_creds('admin1', 'lol'))

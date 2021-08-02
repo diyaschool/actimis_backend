@@ -88,5 +88,13 @@ def list_data():
         output_data.append({'username': user[0], 'token': user[1], 'email': user[2], 'tags': user[3]})
     return output_data
 
-# if __name__ == '__main__':
-#     print(get_by_tag(''))
+def new_user(username, token, email, tags):
+    if get_by_username(username) != False:
+        return (False, "Username already exists")
+    if get_by_email(email) != False:
+        return (False, "Email already exists")
+    all_data = read_db()
+    all_data.append([username, token, email, tags])
+    with open('data/index.db', 'w') as f:
+        f.write(json.dumps(all_data))
+    return (True, all_data)
