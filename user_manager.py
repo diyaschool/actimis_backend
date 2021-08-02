@@ -35,6 +35,15 @@ if __name__ == '__main__':
                 create(username, password, name, tags, email)
             else:
                 print('Not modified.')
+        elif mode == 'del':
+            username = input('Username: ')
+            if are_you_sure():
+                if index_db_manager.del_user(username) == False:
+                    print('username not found')
+                if auth_db_manager.del_user(username) == False:
+                    print('username not found')
+            else:
+                print('Not modified.')
         # elif mode == 'get':
         #     username = input('Username: ')
         #     data = db_get('auth', username)

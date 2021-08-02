@@ -98,3 +98,17 @@ def new_user(username, token, email, tags):
     with open('data/index.db', 'w') as f:
         f.write(json.dumps(all_data))
     return (True, all_data)
+
+def del_user(username):
+    if get_by_username(username) == False:
+        return False
+    all_data = read_db()
+    for i, user in enumerate(all_data):
+        if user[0].lower() == username:
+            all_data.pop(i)
+            break
+    with open('data/index.db', 'w') as f:
+        f.write(json.dumps(all_data))
+
+if __name__ == '__main__':
+    del_user('test')

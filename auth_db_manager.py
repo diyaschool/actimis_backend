@@ -54,6 +54,14 @@ def new_user(username, password, name, email, tags):
     write(username, user_data)
     return (True, "Written successfully")
 
+def del_user(username):
+    if read_user_db(username) == False:
+        return False
+    with open('data/auth.db') as f:
+        data = json.loads(f.read())
+    data.pop(username)
+    with open('data/auth.db', 'w') as f:
+        f.write(json.dumps(data))
+
 if __name__ == '__main__':
-    # new_user('admin1', 'lol', "admin1@dev.app", ['9a', '9b'])
-    print(verify_creds('admin1', 'lol'))
+    del_user('test')
