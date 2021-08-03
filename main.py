@@ -78,5 +78,10 @@ def e_405(e):
 def e_500(e):
     return response(False, "Encountered an error while processing your request"), 500
 
+@app.after_request
+def after_request(response):
+    response.headers['Access-Control-Allow-Origin'] = "*"
+    return response
+
 if __name__ == '__main__':
-    app.run(debug=True, port=80, host='0.0.0.0')
+    app.run(debug=True, port=8443, host='0.0.0.0', ssl_context="adhoc")
