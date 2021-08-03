@@ -81,6 +81,8 @@ def e_500(e):
 @app.after_request
 def after_request(response):
     response.headers['Access-Control-Allow-Origin'] = "*"
+    response.headers['Access-Control-Allow-Methods'] = "POST, GET"
+    response.headers['Access-Control-Allow-Headers'] = "Content-Type"
     return response
 
 if __name__ == '__main__':
