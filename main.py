@@ -51,15 +51,8 @@ def ping():
     user_ip = flask.request.headers.get('X-Forwarded-For')
     if user_ip == None:
         user_ip = flask.request.remote_addr
-    output = f'''
-    PONG!<br><br>
-
-    {flask.request.method} {flask.request.path}<br>
-    IP: {user_ip}<br>
-    Time: {time.time()}<br>
-    User_Agent: {flask.request.headers.get('user-agent')}
-    '''
-    return output
+    output = {"result": f"PONG!", "details": {"ip_addr": user_ip, "time": time.time(), "user_agent": flask.request.headers.get('user-agent')}}
+    return response(True, output)
 
 ############### Error Handlers ###############
 @app.errorhandler(400)
