@@ -1,2 +1,2 @@
 # Actimis
-Backend API server for Actimis.
+Backend server for Actimis.
