@@ -62,7 +62,10 @@ def auth_authorize():
 @app.route('/auth/user_data')
 def auth_user_data():
     req_data = flask.request.json
-    token = req_data['token']
+    try:
+        token = req_data['token']
+    except KeyError:
+        return response(False, "Token missing")
     user_data = get_user_data(token)
     if user_data == False:
         return response(False, "Token invalid")
@@ -72,7 +75,10 @@ def auth_user_data():
 @app.route('/auth/test', methods=['GET', 'POST'])
 def auth_test():
     req_data = flask.request.json
-    token = req_data['token']
+    try:
+        token = req_data['token']
+    except KeyError:
+        return response(False, "Token missing")
     user_data = get_user_data(token)
     if user_data == False:
         return response(False, "Token invalid")
@@ -81,7 +87,10 @@ def auth_test():
 @app.route('/auth/logout', methods=['POST'])
 def auth_logout():
     req_data = flask.request.json
-    token = req_data['token']
+    try:
+        token = req_data['token']
+    except KeyError:
+        return response(False, "Token missing")
     user_data = get_user_data(token)
     if user_data == False:
         return response(False, "Token invalid")
@@ -91,14 +100,37 @@ def auth_logout():
     token_db_manager.delete(token)
     return response(True, "Logged out")
 
-######## API Endpoints ########
+######## Test Endpoints ########
+@app.route('/test/new', methods=['POST'])
+def test_new():
+    req_data = flask.request.json
+    try:
+        token = req_data['token']
+    except KeyError:
+        return response(False, "Token missing")
+    user_data = get_user_data(token)
+    if user_data == False:
+        return response(False, "Token invalid")
+
+@app.route('/test/attend', methods=['POST'])
+def test_attend():
+    req_data = flask.request.json
+    try:
+        token = req_data['token']
+    except KeyError:
+        return response(False, "Token missing")
+    user_data = get_user_data(token)
+    if user_data == False:
+        return response(False, "Token invalid")
+
+######## Other Endpoints ########
 @app.route('/ping/', methods=['GET', 'POST'])
 def ping():
     user_ip = flask.request.headers.get('X-Forwarded-For')
     if user_ip == None:
         user_ip = flask.request.remote_addr
-    output = {"result": f"PONG!", "details": {"ip_addr": user_ip, "time": time.time(), "user_agent": flask.request.headers.get('user-agent')}}
-    return response(True, output)
+        output = {"result": f"PONG!", "details": {"ip_addr": user_ip, "time": time.time(), "user_agent": flask.request.headers.get('user-agent')}}
+        return response(True, output)
 
 ############### Error Handlers ###############
 @app.errorhandler(400)
