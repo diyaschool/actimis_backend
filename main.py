@@ -14,6 +14,17 @@ def response(success, data):
     elif success == False:
         return {"success": False, "error": data}
 
+def get_user_data(token):
+    username = index_db_manager.get_by_token(token)
+    if username == False:
+        return False
+    username = username['username']
+    user_data = auth_db_manager.read_user_db(username)
+    user_data['username'] = username
+    if user_data == False:
+        return False
+    return user_data
+
 ############### API Endpoints ###############
 ######## AUTH ########
 @app.route('/auth/authorize', methods=['POST'])
@@ -27,9 +38,10 @@ def auth_authorize():
         password = data['password']
     except KeyError:
         return response(False, "Plaintext password value missing")
+    # if username.strip() == ""
     res_bool, res_text = auth_db_manager.verify_creds(username, password)
     if res_bool == False:
-        return res_text
+        return response(False, res_text)
     while True:
         token = secrets.token_urlsafe()
         if index_db_manager.get_by_token(token) == False:
@@ -43,7 +55,41 @@ def auth_authorize():
     index_db_manager.write_by_username(username, index_user_data)
     token_db_manager.write(token, {"username": username, "login_timestamp": time.time(), "ip_addr": user_ip, "user_agent": flask.request.headers.get('user-agent')})
     token_db_manager.delete(old_token)
-    return response(True, data)
+    user_data = get_user_data(token)
+    user_data.pop('password')
+    return response(True, {'token': token, 'user_data': user_data})
+
+@app.route('/auth/user_data')
+def auth_user_data():
+    req_data = flask.request.json
+    token = req_data['token']
+    user_data = get_user_data(token)
+    if user_data == False:
+        return response(False, "Token invalid")
+    user_data.pop('password')
+    return response(True, user_data)
+
+@app.route('/auth/test', methods=['GET', 'POST'])
+def auth_test():
+    req_data = flask.request.json
+    token = req_data['token']
+    user_data = get_user_data(token)
+    if user_data == False:
+        return response(False, "Token invalid")
+    return response(True, "Token verified")
+
+@app.route('/auth/logout', methods=['POST'])
+def auth_logout():
+    req_data = flask.request.json
+    token = req_data['token']
+    user_data = get_user_data(token)
+    if user_data == False:
+        return response(False, "Token invalid")
+    index_data = index_db_manager.get_by_token(token)
+    index_data['token'] = "LOGGED_OUT"
+    index_db_manager.write_by_token(token, index_data)
+    token_db_manager.delete(token)
+    return response(True, "Logged out")
 
 ######## API Endpoints ########
 @app.route('/ping/', methods=['GET', 'POST'])
