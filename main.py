@@ -18,12 +18,18 @@ app = flask.Flask(__name__)
 
 ############################## Base Functions ##############################
 def response(success, data, message=None):
+    """
+    generate standardized response for success or failure.
+    """
     if success == True:
         return {"success": True, "data": data, "message": message}
     elif success == False:
         return {"success": False, "error": data, "message": message}
 
 def get_user_data(token):
+    """
+    get full user metadata from user_db_manager
+    """
     username = user_db_indexer.get_by_token(token)
     if username == False:
         return False
@@ -34,83 +40,54 @@ def get_user_data(token):
         return False
     return user_data
 
-def get_test_metadata(test_id):
-    with open('data/test_db/test_metadata.json') as f:
-        data = json.loads(f.read())
-    return data[test_id]
-
-def load_test_data(test_id):
-    with open(f'data/test_db/prod_data/{test_id}.json') as f:
-        data = json.loads(f.read())
-    for que in data:
-        for i, opt in enumerate(data[que]['options']):
-            opt['id'] = i
-    return data
-
-def ctestdb_update(token, data):
-    db = plyvel.DB('data/ctestdb', create_if_missing=True)
-    db.put(token.encode(), json.dumps(data).encode())
-    db.close()
-
-def ctestdb_get(token):
-    db = plyvel.DB('data/ctestdb', create_if_missing=True)
-    data = db.get(token.encode())
-    if data == None:
-        return False
-    data = json.loads(data.decode())
-    db.close()
-    return data
-
-def ctestdb_exit(token):
-    db = plyvel.DB('data/ctestdb', create_if_missing=True)
-    db.delete(token.encode())
-    db.close()
-
-def get_que(test_id, difficulty):
-    with open(f'data/test_db/prod_data/{test_id}.json') as f:
-        data = json.loads(f.read())
-    processed_data = {}
-    for que in data:
-        try:
-            data[que]['difficulty']
-            processed_data[data[que]['difficulty']]
-        except KeyError:
-            processed_data[data[que]['difficulty']] = []
-        data[que]['id'] = que
-        processed_data[data[que]['difficulty']].append(data[que])
-    if processed_data[difficulty] == []:
-        return False
-    selected_que = random.choice(processed_data[difficulty])
-    return selected_que
-
-def get_new_que(test_id, difficulty, finished_ids):
-    with open(f'data/test_db/prod_data/{test_id}.json') as f:
-        data = json.loads(f.read())
-    processed_data = {}
-    for que in data:
-        try:
-            processed_data[data[que]['difficulty']]
-        except KeyError:
-            processed_data[data[que]['difficulty']] = []
-        data[que]['id'] = que
-        processed_data[data[que]['difficulty']].append(data[que])
-    if processed_data[difficulty] == []:
-        return False
-    from_ids = [que['id'] for que in processed_data[difficulty]]
-    for que in finished_ids:
-        try:
-            from_ids.remove(que)
-        except ValueError:
-            pass
-    if from_ids == []:
-        return False
-    while True:
-        selected_que = random.choice(processed_data[difficulty])
-        if selected_que['id'] not in finished_ids:
-            break
-    return selected_que
+# def get_que(test_id, difficulty):
+#     with open(f'data/test_db/prod_data/{test_id}.json') as f:
+#         data = json.loads(f.read())
+#     processed_data = {}
+#     for que in data:
+#         try:
+#             data[que]['difficulty']
+#             processed_data[data[que]['difficulty']]
+#         except KeyError:
+#             processed_data[data[que]['difficulty']] = []
+#         data[que]['id'] = que
+#         processed_data[data[que]['difficulty']].append(data[que])
+#     if processed_data[difficulty] == []:
+#         return False
+#     selected_que = random.choice(processed_data[difficulty])
+#     return selected_que
+#
+# def get_new_que(test_id, difficulty, finished_ids):
+#     with open(f'data/test_db/prod_data/{test_id}.json') as f:
+#         data = json.loads(f.read())
+#     processed_data = {}
+#     for que in data:
+#         try:
+#             processed_data[data[que]['difficulty']]
+#         except KeyError:
+#             processed_data[data[que]['difficulty']] = []
+#         data[que]['id'] = que
+#         processed_data[data[que]['difficulty']].append(data[que])
+#     if processed_data[difficulty] == []:
+#         return False
+#     from_ids = [que['id'] for que in processed_data[difficulty]]
+#     for que in finished_ids:
+#         try:
+#             from_ids.remove(que)
+#         except ValueError:
+#             pass
+#     if from_ids == []:
+#         return False
+#     while True:
+#         selected_que = random.choice(processed_data[difficulty])
+#         if selected_que['id'] not in finished_ids:
+#             break
+#     return selected_que
 
 def authorize_request(req_data):
+    """
+    check if token in req_data is valid and authorized.
+    """
     try:
         token = req_data['token']
     except KeyError:
@@ -128,11 +105,15 @@ def authorize_request(req_data):
 ######## AUTH ########
 @app.route('/auth/authorize/', methods=['POST'])
 def auth_authorize():
+    """
+    auth endpoint for creating a new session with JWT token
+    from Google OAuth Sign In button
+    """
     data = flask.request.json # get JSON data from frontend
     if data == None:
         return response(False, "BAD_REQUEST", "Use application/json"), 400
     try:
-        jwt_token = data['jwt_token']
+        jwt_token = data['jwt_token'] # receive JWT token
     except KeyError:
         # return error if jwt_token is missing
         return response(False, "JWT_TOKEN_MISSING", "JWT token missing"), 400
@@ -140,32 +121,34 @@ def auth_authorize():
     res_bool, res_code, username, email_address = auth_manager.authorize_jwt(jwt_token)
     if res_bool == False:
         res_msg = None
-        if res_code == "AUTH_ERROR":
+        if res_code == "AUTH_ERROR": # unkown error, not implemented yet
             res_msg = "Authentication error, try again"
-        elif res_code == "EXTERNAL_ACCOUNT":
+        elif res_code == "EXTERNAL_ACCOUNT": # if email doesnt belong to org
             res_msg = "This is an external account, make sure the email ends in @diyaschool.com"
-        elif res_code == "ACCOUNT_NOT_FOUND":
+        elif res_code == "ACCOUNT_NOT_FOUND": # if no account is linked to email
             res_msg = "This account does not exist, please use another one"
         return response(False, res_code, res_msg), 403
     while True:
-        token = secrets.token_urlsafe(32)
+        token = secrets.token_urlsafe(32) # generate new token
         if user_db_indexer.get_by_token(token) == False:
-            break
-    user_ip = flask.request.headers.get('X-Forwarded-For')
+            break # make sure token is not repeated (highly unlikely will ever occur)
+    user_ip = flask.request.headers.get('X-Forwarded-For') # get IP from Cloudflare
     if user_ip == None:
-        user_ip = flask.request.remote_addr
+        user_ip = flask.request.remote_addr # get connecting IP directly ip
     index_user_data = user_db_indexer.get_by_username(username)
-    index_user_data['tokens'].append(token)
+    index_user_data['tokens'].append(token) # add token to user indexer
     user_db_indexer.write_by_username(username, index_user_data)
-    session_db_manager.write(token, {"username": username,
+    session_db_manager.write(token, {"username": username, # add token to session manager
         "login_timestamp": time.time(), "ip_addr": user_ip,
         "user_agent": flask.request.headers.get('user-agent')})
     user_data = get_user_data(token)
-    user_data['email'] = email_address
-    return response(True, {'token': token, 'user_data': user_data})
+    return response(True, {'token': token, 'user_data': user_data}) # return success with user_data
 
 @app.route('/auth/test/', methods=['GET', 'POST'])
 def auth_test():
+    """
+    test endpoint to check if token is valid and authorized
+    """
     req_data = flask.request.json
     auth_resp = authorize_request(req_data)
     if auth_resp[0] == False:
@@ -174,6 +157,9 @@ def auth_test():
 
 @app.route('/auth/user_data/')
 def auth_user_data():
+    """
+    user_data of authorized token holder.
+    """
     req_data = flask.request.json
     auth_resp = authorize_request(req_data)
     if auth_resp[0] == False:
@@ -184,16 +170,20 @@ def auth_user_data():
 
 @app.route('/auth/logout/', methods=['POST'])
 def auth_logout():
+    """
+    DEACTIVATES token. Can be re-activated later, without appearing on indexer.
+    (could be exploited by admins for personal data, if any)
+    """
     req_data = flask.request.json
     auth_resp = authorize_request(req_data)
     if auth_resp[0] == False:
         return response(auth_resp[0], auth_resp[1], auth_resp[2]), auth_resp[3]
     token = req_data['token']
     index_data = user_db_indexer.get_by_token(token)
-    index_data['token'] = "LOGGED_OUT"
+    index_data['token'].remove(token) # removes token from indexer (used for frontend sessions page)
     user_db_indexer.write_by_token(token, index_data)
-    session_db_manager.deactivate(token)
-    return response(True, None, "Logged out")
+    session_db_manager.deactivate(token) # deactivates token in session db (only backend)
+    return response(True, "LOGGED_OUT", "Logged out")
 
 ######## Test Endpoints ########
 @app.route('/test/new/', methods=['POST'])
@@ -226,21 +216,13 @@ def test_init():
     ctestdb_update(token, ctest_data)
     return response(True, get_new_que(test_id, 1, ['a51s9', 'a51s8', 'a51s6']))
 
-@app.route('/test/status/', methods=['POST'])
-def test_status():
-    req_data = flask.request.json
-    auth_resp = authorize_request(req_data)
-    if auth_resp[0] == False:
-        return response(auth_resp[0], auth_resp[1], auth_resp[2]), auth_resp[3]
-    ctest_data = ctestdb_get(req_data['token'])
-    if ctest_data == False:
-        return response(True, False)
-    else:
-        return response(True, ctest_data)
-
 ######## Other Endpoints ########
 @app.route('/ping/', methods=['GET', 'POST'])
 def ping():
+    """
+    Does nothing but respond to a ping.
+    Returns PONG with IP ad user agent string.
+    """
     user_ip = flask.request.headers.get('X-Forwarded-For')
     if user_ip == None:
         user_ip = flask.request.remote_addr
@@ -276,4 +258,5 @@ def after_request(response):
     return response
 
 if __name__ == '__main__':
+    # run in development mode
     app.run(debug=True, port=8441, host='0.0.0.0', ssl_context="adhoc")
