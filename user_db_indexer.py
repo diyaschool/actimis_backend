@@ -7,7 +7,7 @@ import json
 
 def read_db():
     """
-    raw-reads the whole database (may be problematic in future with large data)
+    raw-reads the whole database (may be problematic in future with more data)
     """
     try:
         with open('data/index.db') as f:

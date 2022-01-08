@@ -13,8 +13,8 @@ def list_tokens():
     """
     db = plyvel.DB('data/token_db', create_if_missing=True)
     output_data = []
-    for token, _ in db:
-        output_data.append(token.decode())
+    for token, data in db:
+        output_data.append((token.decode(), json.loads(data.decode())))
     db.close()
     return output_data
 
@@ -43,7 +43,6 @@ def delete(token):
     """
     delete a session, thus revoking access.
     """
-    deactivate(token)
     db = plyvel.DB('data/token_db', create_if_missing=True)
     db.delete(token.encode())
     db.close()
@@ -76,7 +75,7 @@ def activate(token):
     db.close()
 
 if __name__ == '__main__':
-    for token in list_tokens():
-        print(token, read(token))
+    for token, data in list_tokens():
+        print(token, data)
         delete(token)
     print()
