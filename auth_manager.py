@@ -26,11 +26,11 @@ def authorize_jwt(jwt_token):
     email = idinfo['email'] # get email
     # check if email is part of organization
     if re.search("@[\w.]+", email).group() not in authorized_email_domains:
-        return False, "EXTERNAL_ACCOUNT", None, None # return EXTERNAL_ACCOUNT error
+        return False, "EXTERNAL_ACCOUNT", None, email # return EXTERNAL_ACCOUNT error
     user_data = user_db_indexer.get_by_email(email) # get username of email owner
     if user_data == False:
         return False, "ACCOUNT_NOT_FOUND", None, None # return error if account invalid
-    return True, None, user_data['username'], email 
+    return True, None, user_data['username'], email
 
 if __name__ == '__main__':
     print(read_user_db())

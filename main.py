@@ -17,25 +17,35 @@ import user_db_manager
 app = flask.Flask(__name__)
 
 ############################## Base Functions ##############################
-def response(success, data, message=None):
+def response(success, data, message=None, additional_data=None):
     """
     generate standardized response for success or failure.
     """
     if success == True:
-        return {"success": True, "data": data, "message": message}
+        return_data = {"success": True}
+        if data: return_data['data'] = data
+        if message: return_data['message'] = message
+        if additional_data: return_data['additional_data'] = additional_data
+        return return_data
     elif success == False:
-        return {"success": False, "error": data, "message": message}
+        return_data = {"success": False}
+        if data: return_data['error'] = data
+        if message: return_data['message'] = message
+        if additional_data: return_data['additional_data'] = additional_data
+        return return_data
 
 def get_user_data(token):
     """
     get full user metadata from user_db_manager
     """
-    username = user_db_indexer.get_by_token(token)
-    if username == False:
+    user_index = user_db_indexer.get_by_token(token)
+    if user_index == False:
         return False
-    username = username['username']
+    username = user_index['username']
     user_data = user_db_manager.user_db_get(username)
     user_data['username'] = username
+    user_data['email'] = user_index['email']
+    user_data['tags'] = user_index['tags']
     if user_data == False:
         return False
     return user_data
@@ -92,6 +102,8 @@ def authorize_request(req_data):
         token = req_data['token']
     except KeyError:
         return False, "TOKEN_MISSING", "Token missing", 400
+    except TypeError:
+        return False, "BAD_REQUEST", "Bad request, use application/json", 400
     token_data = session_db_manager.read(token)
     if token_data == False:
         return False, "UNAUTHORIZED", "API token invalid", 401
@@ -127,7 +139,7 @@ def auth_authorize():
             res_msg = "This is an external account, make sure the email ends in @diyaschool.com"
         elif res_code == "ACCOUNT_NOT_FOUND": # if no account is linked to email
             res_msg = "This account does not exist, please use another one"
-        return response(False, res_code, res_msg), 403
+        return response(False, res_code, res_msg, {"email": email_address}), 403
     while True:
         token = secrets.token_urlsafe(32) # generate new token
         if user_db_indexer.get_by_token(token) == False:
@@ -153,7 +165,7 @@ def auth_test():
     auth_resp = authorize_request(req_data)
     if auth_resp[0] == False:
         return response(False, auth_resp[1], auth_resp[2]), auth_resp[3]
-    return response(True, "Token verified")
+    return response(True, None, "Token verified")
 
 @app.route('/auth/user_data/')
 def auth_user_data():
@@ -165,14 +177,13 @@ def auth_user_data():
     if auth_resp[0] == False:
         return response(auth_resp[0], auth_resp[1], auth_resp[2]), auth_resp[3]
     user_data = get_user_data(req_data['token'])
-    user_data.pop('password')
     return response(True, user_data)
 
 @app.route('/auth/logout/', methods=['POST'])
 def auth_logout():
     """
     DEACTIVATES token. Can be re-activated later, without appearing on indexer.
-    (could be exploited by admins for personal data, if any)
+    (could be exploited by admins for personal data, if any exists)
     """
     req_data = flask.request.json
     auth_resp = authorize_request(req_data)
@@ -185,7 +196,19 @@ def auth_logout():
     session_db_manager.deactivate(token) # deactivates token in session db (only backend)
     return response(True, "LOGGED_OUT", "Logged out")
 
-######## Test Endpoints ########
+######## Test (Assessment) Endpoints ########
+##### Classic MCQ #####
+@app.route('/test/classic_mcq/user_instance/new/', methods=["POST"])
+def classic_mcq_new_instance():
+    req_data = flask.request.json
+    auth_resp = authorize_request(req_data)
+    if auth_resp[0] == False:
+        return response(auth_resp[0], auth_resp[1], auth_resp[2]), auth_resp[3]
+    user_data = get_user_data(req_data['token'])
+
+    with open("data/test_db/classic_mcq/user_instances/") as f:
+        pass
+
 # @app.route('/test/new/', methods=['POST'])
 # def test_new():
 #     req_data = flask.request.json
