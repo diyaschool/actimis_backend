@@ -77,5 +77,5 @@ def activate(token):
 if __name__ == '__main__':
     for token, data in list_tokens():
         print(token, data)
-        delete(token)
+        # delete(token)
     print()
