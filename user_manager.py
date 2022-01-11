@@ -1,5 +1,14 @@
 import plyvel
 import json
+import collections.abc
+
+def update_dict(d, u):
+    for k, v in u.items():
+        if isinstance(v, collections.abc.Mapping):
+            d[k] = update_dict(d.get(k, {}), v)
+        else:
+            d[k] = v
+    return d
 
 def get(user):
     db = plyvel.DB('data/user_db', create_if_missing=True)
@@ -32,7 +41,7 @@ def modify(user, new_data):
     data = get(user)
     if data == False:
         return False
-    data.update(new_data)
+    data = update_dict(data, new_data)
     put(user, data)
 
 if __name__ == '__main__':
