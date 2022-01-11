@@ -260,36 +260,6 @@ def classic_mcq_get_session():
     user_session_id = user_session['session_id']
     return response(True, {"user_session_id": user_session_id})
 
-# @app.route('/test/new/', methods=['POST'])
-# def test_new():
-#     req_data = flask.request.json
-#     auth_resp = authorize_request(req_data)
-#     if auth_resp[0] == False:
-#         return response(auth_resp[0], auth_resp[1], auth_resp[2]), auth_resp[3]
-#     user_data = get_user_data(req_data['token'])
-#     if user_data == False:
-#         return response(False, "TOKEN_MISSING", "Token missing"), 401
-#     if 'teacher' in user_data['tags'] or 'team' in user_data['tags']:
-#         pass
-#     else:
-#         return response(False, "FORBIDDEN", "Forbidden"), 403
-#
-# @app.route('/test/init/', methods=['POST'])
-# def test_init():
-#     req_data = flask.request.json
-#     auth_resp = authorize_request(req_data)
-#     if auth_resp[0] == False:
-#         return response(auth_resp[0], auth_resp[1], auth_resp[2]), auth_resp[3]
-#     token = req_data['token']
-#     ctest_data = ctestdb_get(token)
-#     try:
-#         test_id = req_data['test_id']
-#     except KeyError:
-#         return response(False, "TEST_ID_MISSING", "test_id missing"), 401
-#     ctest_data = {"test_id": test_id, "que_stream": []}
-#     ctestdb_update(token, ctest_data)
-#     return response(True, get_new_que(test_id, 1, ['a51s9', 'a51s8', 'a51s6']))
-
 ######## Other Endpoints ########
 @app.route('/ping/', methods=['GET', 'POST'])
 def ping():
