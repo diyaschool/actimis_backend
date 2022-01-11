@@ -12,7 +12,8 @@ import secrets
 import session_db_manager
 import auth_manager
 import user_db_indexer
-import user_db_manager
+import user_manager
+import os
 
 app = flask.Flask(__name__)
 
@@ -36,13 +37,13 @@ def response(success, data, message=None, additional_data=None):
 
 def get_user_data(token):
     """
-    get full user metadata from user_db_manager
+    get full user metadata from user_manager
     """
     user_index = user_db_indexer.get_by_token(token)
     if user_index == False:
         return False
     username = user_index['username']
-    user_data = user_db_manager.user_db_get(username)
+    user_data = user_manager.get(username)
     user_data['username'] = username
     user_data['email'] = user_index['email']
     user_data['tags'] = user_index['tags']
@@ -198,16 +199,66 @@ def auth_logout():
 
 ######## Test (Assessment) Endpoints ########
 ##### Classic MCQ #####
-@app.route('/test/classic_mcq/user_instance/new/', methods=["POST"])
-def classic_mcq_new_instance():
+@app.route('/test/classic_mcq/user_session/new/', methods=["POST"])
+def classic_mcq_new_session():
     req_data = flask.request.json
     auth_resp = authorize_request(req_data)
     if auth_resp[0] == False:
-        return response(auth_resp[0], auth_resp[1], auth_resp[2]), auth_resp[3]
+        return response(False, auth_resp[1], auth_resp[2]), auth_resp[3]
+    if req_data.get('test_id') == None:
+        return response(False, "TEST_ID_MISSING", "test_id missing"), 400
     user_data = get_user_data(req_data['token'])
+    username = user_data['username']
+    test_id = req_data['test_id']
+    if user_data['test_data']['classic_mcq']['user_sessions'].get(test_id) != None:
+        return response(False, "USER_SESSION_EXISTS", "A session for this test already exists"), 409
+    user_session_id = secrets.token_hex(10)
+    user_manager.modify(username, {"test_data": {"classic_mcq": {"user_sessions": {test_id: {"session_id": user_session_id}}}}})
+    try:
+        with open(f"data/test_db/classic_mcq/test_data/{test_id}/data.json") as f:
+            test_data = json.loads(f.read())
+    except FileNotFoundError:
+        return response(False, "TEST_NOT_FOUND", "No test exists with the test_id specified")
+    with open(f"data/test_db/classic_mcq/user_sessions/{user_session_id}.json", "w") as f:
+        f.write(json.dumps({"test_data": test_data, "test_id": test_id, "username": username}))
+    return response(True, {"user_session_id": user_session_id})
 
-    with open("data/test_db/classic_mcq/user_instances/") as f:
-        pass
+@app.route('/test/classic_mcq/user_session/delete/', methods=['POST'])
+def classic_mcq_delete_session():
+    req_data = flask.request.json
+    auth_resp = authorize_request(req_data)
+    if auth_resp[0] == False:
+        return response(False, auth_resp[1], auth_resp[2]), auth_resp[3]
+    test_id = req_data.get('test_id')
+    if test_id == None:
+        return response(False, "TEST_ID_MISSING", "test_id missing"), 400
+    user_data = get_user_data(req_data['token'])
+    username = user_data['username']
+    user_session = user_data['test_data']['classic_mcq']['user_sessions'].get(test_id)
+    if user_session == None:
+        return response(False, "SESSION_NOT_FOUND", "No session was found for this test"), 404
+    user_session_id = user_session['session_id']
+    user_data['test_data']['classic_mcq']['user_sessions'].pop(test_id)
+    os.remove(f"data/test_db/classic_mcq/user_sessions/{user_session_id}.json")
+    user_manager.put(username, user_data)
+    return response(True, "SESSION_REMOVED")
+
+@app.route('/test/classic_mcq/user_session/get/')
+def classic_mcq_get_session():
+    req_data = flask.request.json
+    auth_resp = authorize_request(req_data)
+    if auth_resp[0] == False:
+        return response(False, auth_resp[1], auth_resp[2]), auth_resp[3]
+    test_id = req_data.get('test_id')
+    if test_id == None:
+        return response(False, "TEST_ID_MISSING", "test_id missing"), 400
+    user_data = get_user_data(req_data['token'])
+    username = user_data['username']
+    user_session = user_data['test_data']['classic_mcq']['user_sessions'].get(test_id)
+    if user_session == None:
+        return response(False, "SESSION_NOT_FOUND", "No session was found for this test"), 404
+    user_session_id = user_session['session_id']
+    return response(True, {"user_session_id": user_session_id})
 
 # @app.route('/test/new/', methods=['POST'])
 # def test_new():
