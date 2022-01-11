@@ -13,6 +13,7 @@ import session_db_manager
 import auth_manager
 import user_db_indexer
 import user_manager
+import test_manager
 import os
 
 app = flask.Flask(__name__)
@@ -212,6 +213,9 @@ def classic_mcq_new_session():
     test_id = req_data['test_id']
     if user_data['test_data']['classic_mcq']['user_sessions'].get(test_id) != None:
         return response(False, "USER_SESSION_EXISTS", "A session for this test already exists"), 409
+    test_metadata = test_manager.classic_mcq.get_test_metadata(test_id)
+    if [i for i in user_data['tags'] if i in test_metadata['tags']] == []:
+        return response(False, "UNAUTHORIZED", "This test is not for you")
     user_session_id = secrets.token_hex(10)
     user_manager.modify(username, {"test_data": {"classic_mcq": {"user_sessions": {test_id: {"session_id": user_session_id}}}}})
     try:
@@ -219,8 +223,14 @@ def classic_mcq_new_session():
             test_data = json.loads(f.read())
     except FileNotFoundError:
         return response(False, "TEST_NOT_FOUND", "No test exists with the test_id specified")
+    test_metadata.pop("sharing")
     with open(f"data/test_db/classic_mcq/user_sessions/{user_session_id}.json", "w") as f:
-        f.write(json.dumps({"test_data": test_data, "test_id": test_id, "username": username}))
+        f.write(json.dumps({
+            "test_data": test_data,
+            "test_metadata": test_metadata,
+            "test_id": test_id,
+            "username": username
+            }))
     return response(True, {"user_session_id": user_session_id})
 
 @app.route('/test/classic_mcq/user_session/delete/', methods=['POST'])
