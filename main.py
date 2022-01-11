@@ -270,6 +270,28 @@ def classic_mcq_get_session():
     user_session_id = user_session['session_id']
     return response(True, {"user_session_id": user_session_id})
 
+@app.route('/test/classic_mcq/user_session/list/')
+def classic_mcq_session_list():
+    req_data = flask.request.json
+    auth_resp = authorize_request(req_data)
+    if auth_resp[0] == False:
+        return response(False, auth_resp[1], auth_resp[2]), auth_resp[3]
+    user_data = get_user_data(req_data['token'])
+    username = user_data['username']
+    user_session_list = []
+    for test_id in user_data['test_data']['classic_mcq']['user_sessions']:
+        session_id = user_data['test_data']['classic_mcq']['user_sessions'][test_id]['session_id']
+        test_metadata = test_manager.classic_mcq.get_test_metadata(test_id)
+        user_session_list.append({
+            "test_id": test_id,
+            "session_id": session_id,
+            "title": test_metadata['title'],
+            "subject": test_metadata['subject'],
+            "creator": test_metadata['creator'],
+            "control_type": test_metadata['control_type']
+            })
+    return response(True, {"user_session_list": user_session_list})
+
 ######## Other Endpoints ########
 @app.route('/ping/', methods=['GET', 'POST'])
 def ping():
