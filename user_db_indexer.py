@@ -4,6 +4,15 @@ Stored in JSON-like arrays in the form of a table.
 """
 
 import json
+import collections.abc
+
+def update_dict(d, u):
+    for k, v in u.items():
+        if isinstance(v, collections.abc.Mapping):
+            d[k] = update(d.get(k, {}), v)
+        else:
+            d[k] = v
+    return d
 
 def read_db():
     """
@@ -11,8 +20,8 @@ def read_db():
     """
     try:
         with open('data/index.db') as f:
-            data = f.read()
-        return json.loads(data)
+            data = json.loads(f.read())
+        return data
     except FileNotFoundError:
         return []
 
@@ -64,7 +73,7 @@ def write_by_username(username, new_data):
     writes data to a row, using the username as index
     """
     data = get_by_username(username)
-    data.update(new_data)
+    data = update_dict(data, new_data)
     all_data = read_db()
     for user in all_data:
         if user[0].lower() == username.lower():
@@ -80,7 +89,7 @@ def write_by_token(token, new_data):
     writes data to a row, using the token as index
     """
     data = get_by_token(token)
-    data.update(new_data)
+    data = update_dict(data, new_data)
     all_data = read_db()
     for user in all_data:
         if token in user[1]:
@@ -96,7 +105,7 @@ def write_by_email(email, data):
     writes data to a row, using the email address as index
     """
     old_data = get_by_email(email)
-    data.update(new_data)
+    data = update_dict(data, new_data)
     all_data = read_db()
     for user in all_data:
         if user[2].lower() == email.lower():
