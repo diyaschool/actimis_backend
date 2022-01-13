@@ -224,12 +224,17 @@ def classic_mcq_new_session():
     except FileNotFoundError:
         return response(False, "TEST_NOT_FOUND", "No test exists with the test_id specified")
     test_metadata.pop("sharing")
+    test_flow = list(range(len(test_data['questions'])))
+    if test_metadata["control_type"] == "random":
+        random.shuffle(test_flow)
     with open(f"data/test_db/classic_mcq/user_sessions/{user_session_id}.json", "w") as f:
         f.write(json.dumps({
             "test_data": test_data,
             "test_metadata": test_metadata,
             "test_id": test_id,
-            "username": username
+            "username": username,
+            "journal": [],
+            "test_flow": test_flow
             }))
     return response(True, {"user_session_id": user_session_id})
 
@@ -281,16 +286,41 @@ def classic_mcq_session_list():
     user_session_list = []
     for test_id in user_data['test_data']['classic_mcq']['user_sessions']:
         session_id = user_data['test_data']['classic_mcq']['user_sessions'][test_id]['session_id']
-        test_metadata = test_manager.classic_mcq.get_test_metadata(test_id)
+        user_session = test_manager.classic_mcq.get_user_session(session_id)
+        test_metadata = user_session['test_metadata']
         user_session_list.append({
             "test_id": test_id,
             "session_id": session_id,
             "title": test_metadata['title'],
             "subject": test_metadata['subject'],
             "creator": test_metadata['creator'],
-            "control_type": test_metadata['control_type']
+            "control_type": test_metadata['control_type'],
             })
     return response(True, {"user_session_list": user_session_list})
+
+@app.route('/test/classic_mcq/attempt/get/')
+def classic_mcq_attempt_get():
+    req_data = flask.request.json
+    auth_resp = authorize_request(req_data)
+    if auth_resp[0] == False:
+        return response(False, auth_resp[1], auth_resp[2]), auth_resp[3]
+    test_id = req_data.get('test_id')
+    if test_id == None:
+        return response(False, "TEST_ID_MISSING", "test_id missing"), 400
+    user_data = get_user_data(req_data['token'])
+    username = user_data['username']
+    _user_session = user_data['test_data']['classic_mcq']['user_sessions'].get(test_id)
+    if _user_session == None:
+        return response(False, "SESSION_NOT_FOUND", "No session was found for this test"), 404
+    session_id = _user_session['session_id']
+    session_data = test_manager.classic_mcq.get_user_session(session_id)
+    return_data = {}
+    return_data['id'] = session_data['test_flow'][0]
+    question = session_data['test_data']['questions'][session_data['test_flow'][0]]
+    return_data['question'] = question
+    if question.get('parent_context') != None:
+        return_data['context'] = session_data['test_data']['contexts'][question.get('parent_context')]
+    return response(True, return_data)
 
 ######## Other Endpoints ########
 @app.route('/ping/', methods=['GET', 'POST'])
