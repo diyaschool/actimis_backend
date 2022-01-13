@@ -233,7 +233,7 @@ def classic_mcq_new_session():
             "test_metadata": test_metadata,
             "test_id": test_id,
             "username": username,
-            "journal": [],
+            "journal": {},
             "test_flow": test_flow
             }))
     return response(True, {"user_session_id": user_session_id})
@@ -316,11 +316,61 @@ def classic_mcq_attempt_get():
     session_data = test_manager.classic_mcq.get_user_session(session_id)
     return_data = {}
     return_data['id'] = session_data['test_flow'][0]
+    question_id = req_data.get('question_id')
+    if session_data['test_metadata']['control_type'] != "user" and question_id != None:
+        return response(False, "UNAUTHORIZED", "This test does not allow choosing questions"), 401
     question = session_data['test_data']['questions'][session_data['test_flow'][0]]
+    if question_id != None and session_data['test_metadata']['control_type'] == "user":
+        if len(session_data['test_data']['questions']) >= question_id+1:
+            question = session_data['test_data']['questions'][question_id]
+        else:
+            return response(False, "QUESTION_NOT_FOUND", "Question out of range"), 400
     return_data['question'] = question
+    return_data['question_id'] = question_id
     if question.get('parent_context') != None:
         return_data['context'] = session_data['test_data']['contexts'][question.get('parent_context')]
     return response(True, return_data)
+
+@app.route('/test/classic_mcq/attempt/que_submit/', methods=['POST'])
+def classic_mcq_attempt_move():
+    req_data = flask.request.json
+    auth_resp = authorize_request(req_data)
+    if auth_resp[0] == False:
+        return response(False, auth_resp[1], auth_resp[2]), auth_resp[3]
+    test_id = req_data.get('test_id')
+    if test_id == None:
+        return response(False, "TEST_ID_MISSING", "test_id missing"), 400
+    answer_id = req_data.get('answer_id')
+    if answer_id == None:
+        return response(False, "ANSWER_ID_MISSING", "answer_id missing"), 400
+    user_data = get_user_data(req_data['token'])
+    username = user_data['username']
+    _user_session = user_data['test_data']['classic_mcq']['user_sessions'].get(test_id)
+    if _user_session == None:
+        return response(False, "SESSION_NOT_FOUND", "No session was found for this test"), 404
+    session_id = _user_session['session_id']
+    session_data = test_manager.classic_mcq.get_user_session(session_id)
+    question_id = req_data.get('question_id')
+    if len(session_data['test_flow']) == 0:
+        # TODO: ADD SUBMIT FEATURE HERE
+        return response(True, "TEST_COMPLETED")
+    if session_data['test_metadata']['control_type'] == "user" and question_id == None:
+        return response(False, "QUESTION_ID_MISSING", "question_id missing"), 400
+    elif session_data['test_metadata']['control_type'] != "user" and question_id != None:
+        return response(False, "UNAUTHORIZED", "This test does not allow choosing questions"), 401
+    elif session_data['test_metadata']['control_type'] != "user" and question_id == None:
+        question_id = session_data['test_flow'][0]
+    if question_id in range(len(session_data['test_data']['questions'])):
+        question_data = {"question": session_data['test_data']['questions'][question_id]}
+    else:
+        return response(False, "QUESTION_NOT_FOUND", "Question out of range"), 400
+    if answer_id not in range(len(question_data['question']['o'])):
+        return response(False, "ANSWER_INVALID", "Answer out of range"), 400
+    question_data['answer_id'] = answer_id
+    session_data['journal'][str(question_id)] = question_data
+    session_data['test_flow'].pop(0)
+    test_manager.classic_mcq.write_user_session(session_id, session_data)
+    return response(True, "SUBMITTED_ANSWER")
 
 ######## Other Endpoints ########
 @app.route('/ping/', methods=['GET', 'POST'])
