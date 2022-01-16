@@ -154,6 +154,3 @@ def del_entry(username):
             break
     with open('data/index.db', 'w') as f:
         f.write(json.dumps(all_data))
-
-if __name__ == '__main__':
-    print(list_data())

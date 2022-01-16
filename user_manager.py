@@ -43,8 +43,3 @@ def modify(user, new_data):
         return False
     data = update_dict(data, new_data)
     put(user, data)
-
-if __name__ == '__main__':
-    print(put("admin1", {"test_data": {"classic_mcq": {"user_sessions": {}}}}))
-    # print(modify("admin0", {"test": "hi"}))
-    print(get("admin1"))

@@ -202,6 +202,14 @@ def auth_logout():
 ##### Classic MCQ #####
 @app.route('/test/classic_mcq/user_session/new/', methods=["POST"])
 def classic_mcq_new_session():
+    """
+    Creates a new "session" for a test (by attendee).
+    The test will be conducted with reference to this new session and NOT the live config by the teacher.
+    This is to prevent conflicts between the configurations, question sequence, answers, etc.
+
+    This function makes a copy of the live test data along with its metadata into a config file with a session name.
+    Then it adds the session name to the user data of the attendee.
+    """
     req_data = flask.request.json
     auth_resp = authorize_request(req_data)
     if auth_resp[0] == False:
@@ -240,6 +248,10 @@ def classic_mcq_new_session():
 
 @app.route('/test/classic_mcq/user_session/delete/', methods=['POST'])
 def classic_mcq_delete_session():
+    """
+    Deletes the user session created by the attendee for a test.
+    The user session ID is present in the user data of the attendee.
+    """
     req_data = flask.request.json
     auth_resp = authorize_request(req_data)
     if auth_resp[0] == False:
@@ -260,6 +272,9 @@ def classic_mcq_delete_session():
 
 @app.route('/test/classic_mcq/user_session/get/')
 def classic_mcq_get_session():
+    """
+    Get the user session ID and details of a test created by the attendee.
+    """
     req_data = flask.request.json
     auth_resp = authorize_request(req_data)
     if auth_resp[0] == False:
@@ -273,7 +288,17 @@ def classic_mcq_get_session():
     if user_session == None:
         return response(False, "SESSION_NOT_FOUND", "No session was found for this test"), 404
     user_session_id = user_session['session_id']
-    return response(True, {"user_session_id": user_session_id})
+    user_session = test_manager.classic_mcq.get_user_session(user_session_id)
+    test_metadata = user_session['test_metadata']
+    return_data = {
+        "test_id": test_id,
+        "session_id": user_session_id,
+        "title": test_metadata['title'],
+        "subject": test_metadata['subject'],
+        "creator": test_metadata['creator'],
+        "control_type": test_metadata['control_type'],
+        }
+    return response(True, return_data)
 
 @app.route('/test/classic_mcq/user_session/list/')
 def classic_mcq_session_list():
