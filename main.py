@@ -19,7 +19,7 @@ import os
 app = flask.Flask(__name__)
 
 ############################## Base Functions ##############################
-def response(success, data, message=None, additional_data=None):
+def response(success, data=None, message=None, additional_data=None):
     """
     generate standardized response for success or failure.
     """
@@ -36,11 +36,16 @@ def response(success, data, message=None, additional_data=None):
         if additional_data: return_data['additional_data'] = additional_data
         return return_data
 
-def get_user_data(token):
+def get_user_data(identifier, use_username=False):
     """
     get full user metadata from user_manager
     """
-    user_index = user_db_indexer.get_by_token(token)
+    if use_username != True:
+        token = identifier
+        user_index = user_db_indexer.get_by_token(token)
+    else:
+        username = identifier
+        user_index = user_db_indexer.get_by_username(username)
     if user_index == False:
         return False
     username = user_index['username']
@@ -200,6 +205,7 @@ def auth_logout():
 
 ######## Test (Assessment) Endpoints ########
 ##### Classic MCQ #####
+## Attendee ##
 @app.route('/test/classic_mcq/user_session/new/', methods=["POST"])
 def classic_mcq_new_session():
     """
@@ -295,13 +301,19 @@ def classic_mcq_get_session():
         "session_id": user_session_id,
         "title": test_metadata['title'],
         "subject": test_metadata['subject'],
-        "creator": test_metadata['creator'],
+        "creator": {
+            "username": test_metadata['creator'],
+            "name": get_user_data(test_metadata['creator'], True)['name']
+            },
         "control_type": test_metadata['control_type'],
         }
     return response(True, return_data)
 
 @app.route('/test/classic_mcq/user_session/list/')
 def classic_mcq_session_list():
+    """
+    List user sessions created for the user accross all tests
+    """
     req_data = flask.request.json
     auth_resp = authorize_request(req_data)
     if auth_resp[0] == False:
@@ -318,13 +330,19 @@ def classic_mcq_session_list():
             "session_id": session_id,
             "title": test_metadata['title'],
             "subject": test_metadata['subject'],
-            "creator": test_metadata['creator'],
+            "creator": {
+                "username": test_metadata['creator'],
+                "name": get_user_data(test_metadata['creator'], True)['name']
+                },
             "control_type": test_metadata['control_type'],
             })
     return response(True, {"user_session_list": user_session_list})
 
 @app.route('/test/classic_mcq/attempt/get/')
 def classic_mcq_attempt_get():
+    """
+    Get details of a specific test's user session
+    """
     req_data = flask.request.json
     auth_resp = authorize_request(req_data)
     if auth_resp[0] == False:
@@ -358,6 +376,10 @@ def classic_mcq_attempt_get():
 
 @app.route('/test/classic_mcq/attempt/que_submit/', methods=['POST'])
 def classic_mcq_attempt_move():
+    """
+    Submit answer to A QUESTION for an mcq only test.
+    Reacts according to control_type.
+    """
     req_data = flask.request.json
     auth_resp = authorize_request(req_data)
     if auth_resp[0] == False:
@@ -431,8 +453,17 @@ def e_405(e):
 def e_500(e):
     return response(False, "SERVER_ERROR", "Encountered an error while processing your request"), 500
 
+############################## Worker Handlers ##############################
+@app.before_request
+def before_request():
+    flask.g.process_init_time = time.time()
+
 @app.after_request
 def after_request(response):
+    process_time = time.time()-flask.g.process_init_time
+    data = response.get_json()
+    data['pt_ms'] = round(process_time*1000, 1)
+    response.set_data(json.dumps(data))
     response.headers['Access-Control-Allow-Origin'] = "https://test.actimis.ml"
     response.headers['Access-Control-Allow-Methods'] = "POST, GET"
     response.headers['Access-Control-Allow-Headers'] = "Content-Type"
