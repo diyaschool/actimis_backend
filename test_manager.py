@@ -12,6 +12,32 @@ class classic_mcq:
             return test_metadata
         except KeyError:
             return False
+    def write_test_metadata(test_id, metadata):
+        try:
+            with open("data/test_db/classic_mcq/test_data/metadata.json") as f:
+                data = json.loads(f.read())
+        except FileNotFoundError:
+            return None
+        try:
+            data[test_id] = metadata
+            with open("data/test_db/classic_mcq/test_data/metadata.json", "w") as f:
+                f.write(json.dumps(data, indent=2))
+            return True
+        except KeyError:
+            return False
+    def delete_test_metadata(test_id):
+        try:
+            with open("data/test_db/classic_mcq/test_data/metadata.json") as f:
+                data = json.loads(f.read())
+        except FileNotFoundError:
+            return None
+        try:
+            data.pop(test_id)
+            with open("data/test_db/classic_mcq/test_data/metadata.json", "w") as f:
+                f.write(json.dumps(data, indent=2))
+            return True
+        except KeyError:
+            return False
     def get_user_session(session_id):
         try:
             with open(f"data/test_db/classic_mcq/user_sessions/{session_id}.json") as f:
