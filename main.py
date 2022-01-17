@@ -238,7 +238,7 @@ def classic_mcq_new_session():
     except FileNotFoundError:
         return response(False, "TEST_NOT_FOUND", "No test exists with the test_id specified")
     test_metadata.pop("sharing")
-    test_flow = list(range(len(test_data['questions'])))
+    test_flow = list(test_data['questions'].keys())
     if test_metadata["control_type"] == "random":
         random.shuffle(test_flow)
     with open(f"data/test_db/classic_mcq/user_sessions/{user_session_id}.json", "w") as f:
@@ -364,18 +364,17 @@ def classic_mcq_attempt_get():
         return response(False, "UNAUTHORIZED", "This test does not allow choosing questions"), 401
     question = session_data['test_data']['questions'][session_data['test_flow'][0]]
     if question_id != None and session_data['test_metadata']['control_type'] == "user":
-        if len(session_data['test_data']['questions']) >= question_id+1:
+        if question_id in list(session_data['test_data']['questions'].keys()):
             question = session_data['test_data']['questions'][question_id]
         else:
-            return response(False, "QUESTION_NOT_FOUND", "Question out of range"), 400
+            return response(False, "QUESTION_NOT_FOUND", "Question not found"), 400
     return_data['question'] = question
-    return_data['question_id'] = question_id
     if question.get('parent_context') != None:
         return_data['context'] = session_data['test_data']['contexts'][question.get('parent_context')]
     return response(True, return_data)
 
 @app.route('/test/classic_mcq/attempt/que_submit/', methods=['POST'])
-def classic_mcq_attempt_move():
+def classic_mcq_attempt_que_submit():
     """
     Submit answer to A QUESTION for an mcq only test.
     Reacts according to control_type.
@@ -418,6 +417,19 @@ def classic_mcq_attempt_move():
     session_data['test_flow'].pop(0)
     test_manager.classic_mcq.write_user_session(session_id, session_data)
     return response(True, "SUBMITTED_ANSWER")
+
+## Teacher ##
+@app.route('/test/classic_mcq/teacher/create/')
+def teacher_classic_mcq_create():
+    """
+    Create a new and empty test with no configurations.
+    """
+    req_data = flask.request.json
+    auth_resp = authorize_request(req_data)
+    if auth_resp[0] == False:
+        return response(auth_resp[0], auth_resp[1], auth_resp[2]), auth_resp[3]
+    user_data = get_user_data(req_data['token'])
+    return response(True, user_data)
 
 ######## Other Endpoints ########
 @app.route('/ping/', methods=['GET', 'POST'])
