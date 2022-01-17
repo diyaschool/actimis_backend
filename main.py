@@ -15,6 +15,7 @@ import user_db_indexer
 import user_manager
 import test_manager
 import os
+import shutil
 
 app = flask.Flask(__name__)
 
@@ -25,15 +26,15 @@ def response(success, data=None, message=None, additional_data=None):
     """
     if success == True:
         return_data = {"success": True}
-        if data: return_data['data'] = data
-        if message: return_data['message'] = message
-        if additional_data: return_data['additional_data'] = additional_data
+        if data!=None: return_data['data'] = data
+        if message!=None: return_data['message'] = message
+        if additional_data!=None: return_data['additional_data'] = additional_data
         return return_data
     elif success == False:
         return_data = {"success": False}
-        if data: return_data['error'] = data
-        if message: return_data['message'] = message
-        if additional_data: return_data['additional_data'] = additional_data
+        if data!=None: return_data['error'] = data
+        if message!=None: return_data['message'] = message
+        if additional_data!=None: return_data['additional_data'] = additional_data
         return return_data
 
 def get_user_data(identifier, use_username=False):
@@ -419,8 +420,8 @@ def classic_mcq_attempt_que_submit():
     return response(True, "SUBMITTED_ANSWER")
 
 ## Teacher ##
-@app.route('/test/classic_mcq/teacher/create/')
-def teacher_classic_mcq_create():
+@app.route('/test/classic_mcq/directory/create/', methods=['POST'])
+def directory_classic_mcq_create():
     """
     Create a new and empty test with no configurations.
     """
@@ -429,7 +430,81 @@ def teacher_classic_mcq_create():
     if auth_resp[0] == False:
         return response(auth_resp[0], auth_resp[1], auth_resp[2]), auth_resp[3]
     user_data = get_user_data(req_data['token'])
-    return response(True, user_data)
+    while True:
+        test_id = secrets.token_hex(3)
+        if test_manager.classic_mcq.get_test_metadata(test_id) == False:
+            break
+    test_title = req_data.get('test_title')
+    if test_title == None:
+        return response(False, "TEST_TITLE_MISSING", "test_title missing"), 400
+    test_subject = req_data.get('test_subject')
+    if test_subject == None:
+        return response(False, "TEST_SUBJECT_MISSING", "test_subject missing"), 400
+    test_tags = req_data.get('test_tags')
+    if test_tags == None:
+        return response(False, "TEST_TAGS_MISSING", "test_tags missing"), 400
+    test_control_type = req_data.get('test_control_type')
+    if test_control_type == None:
+        return response(False, "TEST_CONTROL_TYPE_MISSING", "test_control_type missing"), 400
+    user_data['created_tests']['classic_mcq'][test_id] = {
+        "title": test_title,
+        "subject": test_subject,
+        "tags": test_tags,
+        "control_type": test_control_type
+        }
+    os.mkdir(f'data/test_db/classic_mcq/test_data/{test_id}/')
+    with open(f'data/test_db/classic_mcq/test_data/{test_id}/data.json', 'w') as f:
+        f.write("{}")
+    user_manager.modify(user_data['username'], user_data)
+    test_metadata = {
+        "test_id": test_id,
+        "title": test_title,
+        "subject": test_subject,
+        "tags": test_tags,
+        "creator": user_data['username'],
+        "sharing": {},
+        "control_type": test_control_type
+        }
+    test_manager.classic_mcq.write_test_metadata(test_id, test_metadata)
+    return response(True, test_metadata)
+
+@app.route('/test/classic_mcq/directory/list/')
+def directory_classic_mcq_list():
+    """
+    Lists all the tests created by the user
+    """
+    req_data = flask.request.json
+    auth_resp = authorize_request(req_data)
+    if auth_resp[0] == False:
+        return response(auth_resp[0], auth_resp[1], auth_resp[2]), auth_resp[3]
+    user_data = get_user_data(req_data['token'])
+    return_data = []
+    for test_id in list(user_data['created_tests']['classic_mcq'].keys()):
+        test_metadata = user_data['created_tests']['classic_mcq'][test_id]
+        test_metadata['test_id'] = test_id
+        return_data.append(test_metadata)
+    return response(True, return_data)
+
+@app.route('/test/classic_mcq/directory/delete/', methods=['POST'])
+def directory_classic_mcq_delete():
+    """
+    Deletes the specified test created by the user.
+    """
+    req_data = flask.request.json
+    auth_resp = authorize_request(req_data)
+    if auth_resp[0] == False:
+        return response(auth_resp[0], auth_resp[1], auth_resp[2]), auth_resp[3]
+    user_data = get_user_data(req_data['token'])
+    test_id = req_data.get('test_id')
+    if test_id == None:
+        return response(False, "TEST_ID_MISSING", "test_id missing"), 400
+    if user_data['created_tests']['classic_mcq'].get(test_id) == None:
+        return response(False, "UNAUTHORIZED", "Only the creator of a test can delete it."), 401
+    shutil.rmtree(f'data/test_db/classic_mcq/test_data/{test_id}/')
+    test_manager.classic_mcq.delete_test_metadata(test_id)
+    user_data['created_tests']['classic_mcq'].pop(test_id)
+    user_manager.put(user_data['username'], user_data)
+    return response(True)
 
 ######## Other Endpoints ########
 @app.route('/ping/', methods=['GET', 'POST'])
